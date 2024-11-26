@@ -614,9 +614,6 @@
 					difficultyMult = value;
 
 					restart();
-					idleAction.timeScale = value;
-					moodengRammingCDDuration = 1 * (1 - value / 8);
-					moodengRammingCDCDDuration = 1 * (2 - value / 4);
 
 				}, 300)); 
 				//สร้าง sphere ที่ใช้ในการยิงน้ำ
@@ -671,6 +668,7 @@
 
 				victoryinfo.style.display = 'none';
 
+
 				if (music.isPlaying) {
 					music.stop();
 				}
@@ -692,6 +690,7 @@
 				moodengRammingCDCDTimer = moodengRammingCDCDDuration; // Timer tracking the cooldown
 
 				moodengEatingElapsed = 0;
+				idleAction.timeScale = difficultyMult;
 				eatingAction.stop();
 				defeatAction.stop();
 				idleAction.play();
