@@ -1,0 +1,3 @@
+Textures and Skybox from https://polyhaven.com/
+Tree branches textures from 'How to Create a Low Poly Tree in 1 Minute' by CG Geek
+Music and sounds from https://incompetech.com/music/royalty-free/music.html by Kevin Macleod

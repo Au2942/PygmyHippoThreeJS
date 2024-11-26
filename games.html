@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Moodeng Game</title>
+		<meta charset=utf-8 />
+		<meta name="viewport" content="width=device-width, user-scalable=yes, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="https://webgl2fundamentals.org/webgl/resources/webgl-tutorials.css">
+		<style>
+			canvas {
+				background-color: black;
+			}
+			body {
+				margin: 0;
+				overflow: hidden;
+			}
+			#container {
+				position: relative;
+				width: 100vw;
+				height: 100vh;
+				background-color: #202020;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				top: 25%;
+				left: 50%;
+				transform: translateX(-50%);
+				font-size: 2vw;
+				color: white;
+				font-family: Arial, sans-serif;
+				text-align: center;
+				z-index: 30;
+				display: block;
+			}
+			#startButton {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				font-size: 24px;
+				padding: 10px 20px;
+				background-color: #202020;
+				color: white;
+				border: 2px solid white;
+				cursor: pointer;
+				z-index: 30;
+			}
+			#loading-container {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translateX(-50%);
+				color: white;
+				font-family: Arial, sans-serif;
+				z-index: 20;
+				text-align: center;
+				display:none;
+			}
+			#loading-container label {
+				color: white;
+			}
+			progress#loading-bar {
+				width: 600px;
+				height: 20px;
+				margin-left: 10px;
+				background-color: #333;
+			}
+			progress#loading-bar::-webkit-progress-bar {
+				background-color: black;
+			}
+			progress#loading-bar::-webkit-progress-value {
+				background-color: greenyellow;
+			}
+			progress#loading-bar::-moz-progress-bar{
+				background-color: greenyellow;
+			}
+			#loading-text {
+				margin-left: 10px;
+				color: white;
+			}
+			#score-container {
+				border-radius: 10px;
+				position: absolute;
+				padding: 10px 10px;
+				top: 20px;
+				left: 50%;
+				transform: translateX(-300px);
+				font-family: Arial, sans-serif;
+				z-index: 10; 
+				text-align: center;
+				background-color: #202020;
+				display: none;
+			}
+			#score-container label {
+				margin-left: 10px;
+				color: white;
+			}
+			progress#score-bar {
+				width: 600px;
+				height: 20px;
+				margin-left: 10px;
+				background-color: #ffffff;
+			}
+			progress#score-bar::-webkit-progress-bar {
+				background-color: black;
+			}
+			progress#score-bar::-webkit-progress-value {
+				background-color: aquamarine;
+			}
+			progress#score-bar::-moz-progress-bar{
+				background-color: aquamarine;
+			}
+			#score-text {
+				margin-left: 10px;
+				margin-right: 10px;	
+				color: white;
+			}
+			#victoryinfo {
+				position: absolute;
+				margin-top: 20px;
+				left: 50%;
+				transform: translateX(-50%);
+				font-size: 24px;
+				padding: 10px 20px;
+				background-color: #202020;
+				color: white;
+				border: 2px solid white;
+				z-index: 30;
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="container">
+			<div id="overlay">
+				<div id="info">
+					Shoot water at Moodeng to make her skin shiny!<br />
+					MOUSE to look around and CLICK OR F to shoot water<br/>
+					WASD to move and SPACE to jump
+				</div>
+				<button id="startButton">Play</button>
+			</div>
+			<div id="loading-container">
+				<label for="loading-bar">Loading:</label>
+				<progress id="loading-bar" value="0" max="100"></progress>
+				<span id="loading-text">0%</span>
+			</div>
+			<div id="score-container">
+				<label for="score-bar">Score:</label>
+				<progress id="score-bar" value="0" max="100"></progress>
+				<span id="score-text">0%</span>
+				<div id="victoryinfo">
+					<h1>Victory!</h1>
+					<p>press R to restart!</p>
+				</div>
+			</div>
+		</div>
+
+		<script type="importmap">
+		  {
+			"imports": {
+			  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+			  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+			}
+		  }
+		</script>
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			//import Stats from 'three/addons/libs/stats.module.js';
+
+			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+			import { Octree } from 'three/addons/math/Octree.js';
+			import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
+
+			import { Capsule } from 'three/addons/math/Capsule.js';
+
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+			import {EXRLoader} from 'three/addons/loaders/EXRLoader.js';
+
+			const clock = new THREE.Clock();
+
+
+			//จัด scene ตั้งค่ากล้องและแสงต่าง ๆ (มี ambient light, directional light)
+
+			const scene = new THREE.Scene();
+			//scene.background = new THREE.Color( 0x88ccee );
+			scene.fog = new THREE.Fog( 0xc7e5ff, 10, 50 );
+
+			const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			camera.rotation.order = 'YXZ';
+
+			// const fillLight = new THREE.HemisphereLight( 0x8dc1de, 0x00668d, 1.5 );
+			// fillLight.position.set( 2, 1, 1 );
+			// scene.add( fillLight );
+
+			const ambientLight = new THREE.AmbientLight( 0xb5e1f9 );
+			scene.add( ambientLight );
+
+			const directionalLight = new THREE.DirectionalLight( 0xffffff, 2.5 );
+			directionalLight.position.set( 25, 100, 25 );
+			directionalLight.castShadow = true;
+			directionalLight.shadow.camera.near = 0.01;
+			directionalLight.shadow.camera.far = 500;
+			directionalLight.shadow.camera.right = 30;
+			directionalLight.shadow.camera.left = - 30;
+			directionalLight.shadow.camera.top	= 30;
+			directionalLight.shadow.camera.bottom = - 30;
+			directionalLight.shadow.mapSize.width = 1024;
+			directionalLight.shadow.mapSize.height = 1024;
+			directionalLight.shadow.radius = 4;
+			directionalLight.shadow.bias = - 0.00006;
+			scene.add( directionalLight );
+
+			//const debugSunPosition = new THREE.Mesh( new THREE.SphereGeometry( 3 ), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
+			//scene.add( debugSunPosition );
+			//debugSunPosition.position.copy( directionalLight.position );
+
+			//ประกาศตัวแปรพวก element ของ html ที่จะใช้
+
+			const container = document.getElementById( 'container' );
+			const overlay = document.getElementById( 'overlay' );
+			const startButton = document.getElementById('startButton');
+			const loadingContainer = document.getElementById('loading-container');
+			const loadingBar = document.getElementById('loading-bar');
+			const loadingText = document.getElementById('loading-text');
+			const scoreContainer = document.getElementById('score-container');
+			const scoreBar = document.getElementById('score-bar');
+			const scoreText = document.getElementById('score-text');
+			const victoryinfo = document.getElementById('victoryinfo');
+
+			const renderer = new THREE.WebGLRenderer( { antialias: true } );
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.type = THREE.VSMShadowMap;
+			renderer.toneMapping = THREE.ACESFilmicToneMapping;
+			container.appendChild( renderer.domElement );
+
+			// const stats = new Stats();
+			// stats.domElement.style.position = 'absolute';
+			// stats.domElement.style.top = '0px';
+			// container.appendChild( stats.domElement );
+
+			//ประกาศตัวแปรพวกค่าคงที่ และตัวแปรที่จะใช้ในเกม
+
+			let isInit = false;
+
+			const GRAVITY = 30;
+
+			const STEPS_PER_FRAME = 5;
+
+			const floorOctree = new Octree();
+			const wallOctree = new Octree();
+
+			const originalPlayerStartOffset = new THREE.Vector3( 0, 0, 0 );
+			const originalPlayerEndOffset = new THREE.Vector3(  0, 1.7, 0 );
+			const originalMoodengStartOffset = new THREE.Vector3( 0, 0, -0.75 );
+			const originalMoodengEndOffset = new THREE.Vector3( 0, 0, 0.75 );
+			
+			
+			const player = {
+				//mesh: new THREE.Mesh(),
+				collider: new Capsule( originalPlayerStartOffset.clone(), originalPlayerEndOffset.clone(), 0.35 ),
+				velocity: new THREE.Vector3(),
+				onFloor: false
+			}
+
+			const moodeng = {
+				mesh: new THREE.Mesh(),
+				meshOffset: new THREE.Vector3(0, 0.175, -0.25),
+				collider: new Capsule( originalMoodengStartOffset.clone(), originalMoodengEndOffset.clone(), 0.75 ),
+				targetPosition: new THREE.Vector3(), 
+				capsuleDebug: new THREE.Mesh(new THREE.CapsuleGeometry( 0.75, 1.5, 3, 6) , new THREE.MeshBasicMaterial ({ color: 0x0000ff, wireframe: true } )),
+				velocity: new THREE.Vector3(),
+				onFloor: false
+			}
+
+			const watermelon = {
+				mesh: new THREE.Mesh(),
+				collider: new THREE.Sphere( new THREE.Vector3(), 0.5 ),
+				respawnTimer: 5,
+				elapsedTime: 0,
+				isActive: false
+			}
+
+			let brows;
+			let xEyes;
+			let eyes;
+			let body;
+			
+			const sphereDebug = new THREE.Mesh( new THREE.SphereGeometry( 0.75, 12, 6 ), new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } ) );
+			const watermelonDebug = new THREE.Mesh( new THREE.SphereGeometry( 0.5, 12, 6 ), new THREE.MeshBasicMaterial( { color: 0xff00ff, wireframe: true } ) );
+			let freezeMoodeng = false;
+
+			const NUM_SPHERES = 2500;
+			const SPHERE_RADIUS = 0.02;
+			const spheres = [];
+			let sphereIdx = 0;
+
+			const keyStates = {};
+			let isMouseDown = false;
+
+			let holdTime = 0;
+
+			let score = 0.00;
+			const maxScore = 10000.00;
+			let decayScore = maxScore * 0.01;
+			let decayCD = false;
+			let decayCDTimer = 1;
+			let decayCDTimerElapsed = 0;
+			let win = false;
+
+			let difficultyMult = 2;
+
+			let shootWaterCD = false; // Whether the water shooting cooldown is active
+			const shootWaterCDDuration = 0.01; // Duration in seconds for shootWaterCD
+			let shootWaterCDTimer = shootWaterCDDuration; // Timer tracking the cooldown
+
+			let moodengRammingCD = false; // Whether the moodeng ramming cooldown is active
+			let moodengRammingCDDuration = 1 * (1 - difficultyMult/8); // Duration in seconds for moodengRamming
+			let moodengRammingCDTimer = moodengRammingCDDuration; // Timer tracking the cooldown
+
+			let moodengRammingCDCD = false; // Whether the moodeng ramming cooldown is active
+			let moodengRammingCDCDDuration = 1 * (2 - difficultyMult/4);; // Duration in seconds for moodengRammingCD
+			let moodengRammingCDCDTimer = moodengRammingCDCDDuration; // Timer tracking the cooldown
+
+			let moodengEatingDuration = 4.5;
+			let moodengEatingElapsed = 0;
+			let isEating = false;
+
+			let isStun = false;
+			let stunTimer = 0;
+			const originalCameraRotation = new THREE.Euler();
+
+			//ฟัง event ต่าง ๆ พวกกดปุ่ม กดเมาส์
+
+			document.addEventListener( 'keydown', ( event ) => {
+				
+				keyStates[ event.code ] = true;
+
+			} );
+
+			document.addEventListener( 'keyup', ( event ) => {
+
+				keyStates[ event.code ] = false;
+
+			} );
+
+			container.addEventListener('mousedown', () => {
+				if(document.pointerLockElement === container)
+				{
+					isMouseDown = true;
+				}
+				else if(isInit)
+				{
+					container.requestPointerLock();
+				}
+			});
+
+			container.addEventListener('mouseup', () => {
+
+				if (document.pointerLockElement === container) {
+					isMouseDown = false;
+				}
+			});
+
+			container.addEventListener( 'mousemove', ( event ) => {
+
+				if ( document.pointerLockElement === container && !isStun) {
+					camera.rotation.y -= event.movementX / 500;
+					camera.rotation.x -= event.movementY / 500;
+					camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x, - Math.PI / 2, Math.PI / 2 ); //clamp camera rotation range
+				}
+
+			} );
+			
+			startButton.addEventListener('click', () => {
+				if(!isInit)
+				{
+					isInit = true;
+					overlay.style.display = 'none';
+					loadingContainer.style.display = 'block';
+					init();
+				}
+			});
+
+			//ส่วนของการโหลด model, texture, audio โดยใช้ GLTFLoader, TextureLoader, AudioLoader, EXRLoader
+			//มี LoadingManager เพื่อรอโหลดเสร็จก่อนเริ่มเกม และแสดงผลการโหลด
+
+			const manager = new THREE.LoadingManager();
+
+			manager.onProgress = ( url, itemsLoaded, itemsTotal ) => {
+				const progress = Math.floor((itemsLoaded / itemsTotal) * 100);
+				loadingBar.value = progress;
+				loadingText.innerText = `${progress}%`;
+			};
+			//โหลดเสร็จก็เริ่ม animation loop
+			manager.onLoad = () => {
+				renderer.setAnimationLoop( animate );
+				scoreContainer.style.display = 'block';
+				loadingContainer.style.display = 'none';
+				
+			};
+
+			const loader = new GLTFLoader(manager).setPath( './models/gltf/' );
+			const textureLoader = new THREE.TextureLoader(manager);
+			const exrLoader = new EXRLoader(manager);
+			const gui = new GUI( { width: 200 } );
+
+			const listener = new THREE.AudioListener();
+			const music = new THREE.Audio( listener );
+			const sfx = new THREE.Audio( listener );
+			const audioLoader = new THREE.AudioLoader(manager);
+			const audioBuffers = {}; 
+
+			//เปลี่ยนความเร็วเพลงตามค่า difficulty 
+			//เพลงทั้งหมดมาจาก www.incompetech.com โดย Kevin MacLeod
+
+			const tracks = {
+				1: 'Jaunty Gumption 110 FULL MIX.mp3',
+				2: 'Jaunty Gumption 129 FULL MIX.mp3',
+				3: 'Jaunty Gumption 146 FULL MIX.mp3',
+				4: 'Jaunty Gumption 160 FULL MIX.mp3',
+				5: 'Jaunty Gumption 180 FULL MIX.mp3',
+				6: 'Ambler 184 FULL MIX.mp3',
+			};
+
+			let animations;
+			let mixer;
+			let idleAction;
+			let trotAction;
+			let eatingAction;
+			let defeatAction;
+
+			//ฟังก์ชันนี้นอกจากจะโหลดข้อมูลต่าง ก็มีหน้าที่สร้าง GUI, สร้าง Octree (ไว้ใช้ในการตรวจ collision กับ object ไม่เคลื่อนไหว)
+			
+			function init()
+			{
+				let floorHelper;
+				let wallHelper;
+				loader.load( 'enclosure.gltf', ( gltf ) => {
+
+					scene.add( gltf.scene );
+
+					floorOctree.fromGraphNode( gltf.scene.getObjectByName( 'Floor' ) );
+					wallOctree.fromGraphNode( gltf.scene.getObjectByName( 'Wall' ) );
+
+					gltf.scene.traverse( child => {
+
+						if ( child.isMesh ) {
+
+							child.castShadow = true;
+							child.receiveShadow = true;
+						}
+
+					} );
+
+					//player.collider.translate( new THREE.Vector3( 0, 1, 0 ) ); 
+
+					floorHelper = new OctreeHelper( floorOctree );
+					wallHelper = new OctreeHelper( wallOctree );
+					floorHelper.visible = false;
+					wallHelper.visible = false;
+					scene.add( floorHelper );
+					scene.add( wallHelper );
+
+				} );
+
+				loader.load('moodeng_lowpoly.gltf', (gltf) => {
+				const root = gltf.scene;
+				const mesh = root.getObjectByName('Moodeng');
+				body = root.getObjectByName('Body');
+				brows = root.getObjectByName('Brows');
+				xEyes = root.getObjectByName('XEyes');
+				eyes = root.getObjectByName('Eyes');
+				if(brows) brows.visible = false;
+				if(xEyes) 
+				{
+					xEyes.visible = false;
+				}
+
+				if(mesh)
+				{
+					animations = gltf.animations;
+					console.log(animations)
+					mixer = new THREE.AnimationMixer(mesh);
+					eatingAction = mixer.clipAction(animations[0]);
+					eatingAction.timeScale = 2;
+					idleAction = mixer.clipAction(animations[1]);
+
+					defeatAction = mixer.clipAction(animations[2]);
+					defeatAction.setLoop(THREE.LoopOnce);
+					defeatAction.timeScale = 4;
+					defeatAction.clampWhenFinished = true;
+
+					trotAction = mixer.clipAction(animations[3]);
+					idleAction.play();
+					
+					if (body) {
+						//โหลด texture มาใส่ material phong เพื่อนำไปใช้กับ body ของ moodeng 
+						const texture = textureLoader.load('./models/gltf/Moodeng Base Color.png');
+						texture.colorSpace = THREE.SRGBColorSpace;
+						texture.flipY = false;
+						const phongMaterial = new THREE.MeshPhongMaterial({
+							color: 0xffffff, 
+							shininess: 0, 
+							specular: 0xffffff, 
+							map: texture
+						});
+
+						body.material = phongMaterial;
+
+					}
+
+					mesh.traverse( function ( child ) {
+						if ( child.isMesh ) {
+							child.castShadow = true;
+							child.receiveShadow = true;
+						}
+					} );
+					scene.add(mesh);
+					moodeng.mesh = mesh;
+				}
+
+					moodeng.collider.translate(new THREE.Vector3(0, 0.75, -5));
+
+					scene.add(sphereDebug);
+					scene.add(moodeng.capsuleDebug);
+					scene.add(watermelonDebug);	
+
+					sphereDebug.visible = false;
+					moodeng.capsuleDebug.visible = false;
+					watermelonDebug.visible = false;
+
+				});
+
+				loader.load('watermelon.gltf', (gltf) => {
+					const root = gltf.scene;
+					const mesh = root.getObjectByName('Watermelon');
+					if(mesh)
+					{
+						mesh.traverse( function ( child ) {
+							if ( child.isMesh ) {
+								child.castShadow = true;
+								child.receiveShadow = true;
+							}
+						} );
+						scene.add(mesh);
+						watermelon.mesh = mesh;
+						watermelon.mesh.scale.set(0.5, 0.5, 0.5);
+						watermelon.mesh.visible = false;
+					}
+				});
+
+				//ทำ skybox ด้วยไฟล์ exr โหลดมาจาก www.polyhaven.com
+
+				const skyBox = exrLoader.load(
+					'./textures/kloofendal_48d_partly_cloudy_puresky_1k.exr',
+					() => {
+						const rt = new THREE.WebGLCubeRenderTarget(skyBox.image.height);
+						rt.fromEquirectangularTexture(renderer, skyBox);
+						scene.background = rt.texture;
+					});
+
+				//โหลดเสียงเพลง
+				audioLoader.load('./sounds/' + tracks[1], function (buffer) {
+					music.setBuffer(buffer);
+					music.setLoop(true);
+					music.setVolume(1);
+					music.play();
+
+					// Store the default buffer in case we need it again
+					audioBuffers[1] = buffer;
+				});
+				//โหลดเสียง sfx
+				audioLoader.load('./sounds/Finish Star 3.mp3', function (buffer) {
+					sfx.setBuffer(buffer);
+					sfx.setLoop(false);
+					sfx.setVolume(1);
+				});
+
+				//โหลดเสียงเพลงใน tracks ที่เหลือมาเก็บใน audioBuffers เพื่อใช้ตอนเปลี่ยนเพลง
+				for (const [difficulty, file] of Object.entries(tracks)) {
+					if (parseInt(difficulty) === 1) continue; // Skip reloading the default track
+
+					audioLoader.load('./sounds/' + file, function (buffer) {
+						audioBuffers[difficulty] = buffer;
+					});
+				}
+				
+				//สร้าง GUI ให้ผู้ใช้ interact ผ่าน ui 
+				//แสดง collider ของแผนที่ที่สร้างโดย Octree
+				gui.add( { debugMapCollider: false }, 'debugMapCollider' )
+						.onChange( function ( value ) {
+
+							floorHelper.visible = value;
+							wallHelper.visible = value;
+
+				} );
+				//แสดง collider ของ moodeng กับ watermelon
+				gui.add( { debugCollider: false }, 'debugCollider' )
+						.onChange( function ( value ) {
+
+							sphereDebug.visible = value;
+							moodeng.capsuleDebug.visible = value;
+							watermelonDebug.visible = value;
+
+				} );
+				//แช่ตรรกะ moodeng ให้อยู่กับที่ 
+				gui.add( {freezeMoodeng: false}, 'freezeMoodeng')
+					.onChange( function ( value ) {
+						freezeMoodeng = value;
+					} );
+				//ปรับ difficulty ของเกม
+				gui.add( { difficulty: 2 }, 'difficulty', [ 1, 2, 3, 4, 5 ] )
+				.onChange( debounce((value) => 
+				{
+
+					restart();
+					
+					idleAction.timeScale = value;
+					moodengRammingCDDuration = 1 * (1 - value / 8);
+					moodengRammingCDCDDuration = 1 * (2 - value / 4);
+					difficultyMult = value;
+
+				}, 300)); 
+				//สร้าง sphere ที่ใช้ในการยิงน้ำ
+				const sphereGeometry = new THREE.IcosahedronGeometry( SPHERE_RADIUS, 5 );
+				//material เป็นโปร่งแสง
+				const sphereMaterial = new THREE.MeshLambertMaterial( { transparent: true , opacity: 0.5,  color: 0xADD8E6 } );
+				for ( let i = 0; i < NUM_SPHERES; i ++ ) {
+
+					const sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
+					sphere.visible = false;
+					// sphere.castShadow = true;
+					// sphere.receiveShadow = true;
+
+					scene.add( sphere );
+
+					spheres.push( {
+						mesh: sphere,
+						collider: new THREE.Sphere( new THREE.Vector3( 0, -100, 0 ), SPHERE_RADIUS ),
+						velocity: new THREE.Vector3(),
+						lifetime: 0,
+						canHit: false
+					} );
+
+				}
+
+			}
+			
+			//ฟังก์ชันไว้ชะลอเรียกฟังก์ชันอื่น
+			function debounce(func, wait) {
+				let timeout;
+				return function (...args) {
+					const context = this;
+					clearTimeout(timeout);
+					timeout = setTimeout(() => func.apply(context, args), wait);
+				};
+			}
+
+			//เริ่มเกมใหม่ โดย reset ค่าต่าง ๆ ให้เป็นค่าเริ่มต้น
+			function restart()
+			{
+				holdTime = 0;
+
+				score = 0.00;
+				decayScore = maxScore * 0.01;
+				decayCD = false;
+				decayCDTimer = 1;
+				decayCDTimerElapsed = 0;
+				win = false;
+				body.material.shininess = 0;
+				scoreBar.value = 0;
+				scoreText.textContent = 0 + "%";
+
+				victoryinfo.style.display = 'none';
+
+				if (music.isPlaying) {
+					music.stop();
+				}
+				const buffer = audioBuffers[difficultyMult] || audioBuffers[1];
+				music.setBuffer(buffer);
+				music.play();
+
+
+				difficultyMult = 2;
+
+				shootWaterCD = false; // Whether the water shooting cooldown is active
+				shootWaterCDTimer = shootWaterCDDuration; // Timer tracking the cooldown
+
+				moodengRammingCD = false; // Whether the moodeng ramming cooldown is active
+				moodengRammingCDDuration = 1 * (1 - difficultyMult/8); // Duration in seconds for moodengRamming
+				moodengRammingCDTimer = moodengRammingCDDuration; // Timer tracking the cooldown
+
+				moodengRammingCDCD = false; // Whether the moodeng ramming cooldown is active
+				moodengRammingCDCDDuration = 1 * (2 - difficultyMult/4);; // Duration in seconds for moodengRammingCD
+				moodengRammingCDCDTimer = moodengRammingCDCDDuration; // Timer tracking the cooldown
+
+				moodengEatingElapsed = 0;
+				eatingAction.stop();
+				defeatAction.stop();
+				idleAction.play();
+				if(brows) brows.visible = false;
+				if(xEyes) xEyes.visible = false;
+				if(eyes) eyes.visible = true;
+				watermelon.isActive = false;
+				watermelon.mesh.visible = false;
+				isEating = false;	
+
+				isStun = false;
+				stunTimer = 0;
+
+				const playerCenter = new THREE.Vector3().addVectors(player.collider.start, player.collider.end).multiplyScalar(0.5);
+				player.collider.start.copy( originalPlayerStartOffset );
+				player.collider.end.copy( originalPlayerEndOffset );
+				player.velocity.set( 0, 0, 0 );
+				//player.collider.translate(new THREE.Vector3(0, 3, 0));
+				camera.position.copy( player.collider.end );
+				camera.rotation.set( 0, 0, 0 );
+
+				const moodengCenter = new THREE.Vector3().addVectors(moodeng.collider.start, moodeng.collider.end).multiplyScalar(0.5);
+				moodeng.collider.start.copy( originalMoodengStartOffset );
+				moodeng.collider.end.copy( originalMoodengEndOffset );
+				moodeng.collider.translate(new THREE.Vector3(0, 1.25, -5));
+				moodeng.collider.getCenter(moodeng.mesh.position);
+				moodeng.velocity.set( 0, 0, 0 );
+				moodeng.mesh.rotation.set(0,0,0);
+				moodeng.targetPosition = new THREE.Vector3();
+			}
+
+			//ส่วนตรรกะเกมต่างๆ
+
+			function updateDebug() {
+				moodeng.collider.getCenter(moodeng.capsuleDebug.position);
+				//rotate the capsuleDebug to have its y+ axis pointing the same way as mesh z+ axis
+				const forward = new THREE.Vector3();
+				moodeng.mesh.getWorldDirection(forward);
+				moodeng.capsuleDebug.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), forward);
+				watermelonDebug.position.copy(watermelon.collider.center);
+
+				
+			}
+
+
+			window.addEventListener( 'resize', onWindowResize );
+			
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+			
+			//ยิงน้ำ
+
+			const SPAWN_OFFSET = 0.1;
+
+			function shootWater() {
+				const sphere = spheres[ sphereIdx ];
+				sphere.mesh.visible = true;
+				sphere.lifetime = 5;
+				sphere.canHit = true;
+				const cameraDirection = new THREE.Vector3();
+				const aimDirection = new THREE.Vector3();
+				const referencePosition = new THREE.Vector3();
+				const spawnPosition = new THREE.Vector3();
+				camera.getWorldDirection( cameraDirection );
+
+				referencePosition.copy(player.collider.end).addScaledVector( cameraDirection, player.collider.radius * 1.5 );
+
+				spawnPosition.copy(referencePosition );
+				spawnPosition.addScaledVector(camera.up, -0.3 );
+				//spawnPosition.addScaledVector(getSideVector(),0.5 );
+
+				sphere.collider.center.copy( spawnPosition ) ;
+				sphere.collider.center.addScaledVector(camera.up,(Math.random() - 0.5)*SPAWN_OFFSET );
+				sphere.collider.center.addScaledVector(getSideVector(),(Math.random() - 0.5)*SPAWN_OFFSET );
+
+				const impulse = 1+ 20 * (Math.pow(holdTime,3));
+
+				sphere.velocity.copy( cameraDirection ).multiplyScalar( impulse );
+	
+				sphere.velocity.add( player.velocity);
+
+				sphereIdx = ( sphereIdx + 1 ) % spheres.length;
+
+			}
+
+			//จัดการคะแนน และเช็คว่าเกมจบหรือยัง
+
+			function updateScore(value) {
+				if(win) return;
+				score += value;
+				if (score >= maxScore)
+				{
+					score = maxScore;
+					victoryinfo.style.display = 'block';
+					win = true;
+					idleAction.stop();
+					trotAction.stop();
+					eatingAction.stop();
+					defeatAction.play();
+					if(eyes) eyes.visible = false;
+					if(xEyes) xEyes.visible = true;
+					music.stop();
+					sfx.play();
+					//add delay to play music after sfx
+					setTimeout(() => {
+						music.stop();
+						music.buffer = audioBuffers[6];
+						music.play();
+					}, sfx.buffer.duration * 1000);
+				} 
+				if (score < 0) score = 0;
+
+				if(body)
+				{
+					body.material.shininess = score / maxScore * 100;
+				}
+
+				scoreBar.value = score/maxScore*100;
+				scoreText.textContent = Math.floor((score / maxScore) * 100) + "%";
+			}
+
+			//ไว้ใช้ในการเช็ค capsule collision 
+
+			function closestPointOnLineSegment(a, b, point) {
+				const AB = new THREE.Vector3().subVectors(b, a); // Vector from A to B
+				const AP = new THREE.Vector3().subVectors(point, a); // Vector from A to the point
+				const t = AP.dot(AB) / AB.dot(AB); // Projection factor
+				return a.clone().add(AB.multiplyScalar(Math.max(0, Math.min(1, t)))); // Clamp t to [0, 1]
+			}
+
+
+			//ตรรกะการเคลื่อนไหวผู้เล่น
+
+			function updatePlayer( deltaTime ) {
+
+				let damping = Math.exp( - 4 * deltaTime ) - 1;
+
+				if ( ! player.onFloor ) {
+
+					player.velocity.y -= GRAVITY * deltaTime;
+
+					// small air resistance
+					damping *= 0.1;
+
+				}
+
+				player.velocity.addScaledVector( player.velocity, damping );
+
+				const deltaPosition = player.velocity.clone().multiplyScalar( deltaTime );
+				player.collider.translate( deltaPosition );
+				
+				playerMoodengCollision();
+				playerCollisions();
+
+				camera.position.copy( player.collider.end );
+
+			}
+			let idleTurningProgress = 0;
+			let idleTargetDuration = Math.random() * 3 + 0.5;
+			let idleMoveDuration = Math.random() * 2 + 1;
+			let idleMoveCooldown = Math.random() * 2 + 1;
+			let idleJumpCooldown = Math.random() * 5 + 0.5;
+			let moveSpeed = 20;
+			let turnAround = false;
+
+			//ตรรกะ moodeng ชนแผนที่
+
+			function moodengCollisions() {
+				const floorResult = floorOctree.capsuleIntersect( moodeng.collider );
+				const wallResult = wallOctree.capsuleIntersect( moodeng.collider );
+				moodeng.onFloor = false;
+
+				if ( floorResult ) {
+					moodeng.onFloor = floorResult.normal.y > 0;
+
+					if ( ! moodeng.onFloor ) {
+
+						moodeng.velocity.addScaledVector( floorResult.normal, - floorResult.normal.dot( moodeng.velocity ) );
+
+					}
+
+					if ( floorResult.depth >= 1e-10 ) {
+
+						moodeng.collider.translate( floorResult.normal.multiplyScalar( floorResult.depth ) );
+
+					}
+
+				}
+				if( wallResult ) {
+					
+					if ( wallResult.depth >= 1e-10 ) {
+						moodeng.collider.translate( wallResult.normal.multiplyScalar( wallResult.depth ) );
+					}
+
+					const headCollider = new THREE.Sphere( moodeng.collider.end, moodeng.collider.radius );
+					const headResult = wallOctree.sphereIntersect( headCollider );
+					if( headResult ) {
+						turnAround = true;
+					}
+					
+				}
+				moodengWatermelonCollision();
+
+			}
+
+
+			//ตรรกะพฤติกรรม AI, states และอื่น ๆ ของmoodeng
+			function updateMoodeng( deltaTime ) {
+
+
+				if(freezeMoodeng || win)
+				{
+					return;
+				}
+
+				let damping = Math.exp( - 4 * deltaTime ) - 1;
+
+				if ( ! moodeng.onFloor ) {
+					moodeng.velocity.y -= GRAVITY * deltaTime;
+					damping *= 0.1;
+				}
+
+				moodeng.velocity.addScaledVector( moodeng.velocity, damping );
+
+				const deltaPosition = moodeng.velocity.clone().multiplyScalar( deltaTime );
+				moodeng.collider.translate( deltaPosition );
+
+				moodengCollisions();
+
+				const turningProgress = 0.8 - moodengRammingCDTimer/(moodengRammingCDDuration);
+
+				if(moodeng.mesh) {
+					
+					// Determine the target quaternion for rotation
+					const targetQuaternion = new THREE.Quaternion();
+					const rotationMatrix = new THREE.Matrix4();
+					const currentPos = new THREE.Vector3();
+					moodeng.collider.getCenter(currentPos);
+					currentPos.y = 0;
+					const center = new THREE.Vector3();
+					moodeng.collider.getCenter(center);
+				
+					rotationMatrix.lookAt(moodeng.targetPosition, currentPos, moodeng.mesh.up);
+					targetQuaternion.setFromRotationMatrix(rotationMatrix);
+
+					
+					// Gradually rotate the mesh's quaternion towards the target quaternion
+					const currentQuaternion = moodeng.mesh.quaternion.clone();
+					if(turningProgress > 0)
+					{
+						moodeng.mesh.quaternion.slerpQuaternions(currentQuaternion, targetQuaternion, turningProgress);
+					}
+					else 
+					{
+						moodeng.mesh.quaternion.slerpQuaternions(currentQuaternion, targetQuaternion, idleTurningProgress * 0.01);
+						if(idleTurningProgress < 1)
+						{
+							idleTurningProgress += deltaTime;
+						}
+						else
+						{
+							idleTurningProgress = 0;
+						}
+					}
+
+					const rotatedStart = originalMoodengStartOffset.clone().applyQuaternion(moodeng.mesh.quaternion).add(center);
+					const rotatedEnd = originalMoodengEndOffset.clone().applyQuaternion(moodeng.mesh.quaternion).add(center);
+
+					// Update collider positions
+					moodeng.collider.start.copy(rotatedStart);
+					moodeng.collider.end.copy(rotatedEnd);	
+				}
+
+
+				// Update mesh position and debug
+				moodeng.collider.getCenter(moodeng.mesh.position);
+				//apply offset with consideration to rotation
+				const forward = new THREE.Vector3(); 
+				moodeng.mesh.getWorldDirection(forward);
+				moodeng.mesh.position.addScaledVector(forward, moodeng.meshOffset.z);
+				moodeng.mesh.position.addScaledVector(moodeng.mesh.up, moodeng.meshOffset.y);
+				
+
+				if(decayCD)
+				{
+					decayCDTimerElapsed += deltaTime;
+					if(decayCDTimerElapsed >= decayCDTimer)
+					{
+						decayCD = false;
+						decayCDTimerElapsed = 0;
+					}
+				}
+
+				if(!decayCD && !win)
+				{
+					updateScore(-decayScore * deltaTime);
+				}
+
+				if(isEating)
+				{
+					moodengEatingElapsed += deltaTime;
+					moodengEating();
+				}
+				if (moodengRammingCD) {
+					if(!moodengRammingCDCD) {
+						moodengRammingCDTimer -= deltaTime; 
+						if (moodengRammingCDTimer <= 0 && moodeng.onFloor) {
+							moodengRamming(); 
+							moodengRammingCDCD = true;
+						}
+					}
+					else if(!isEating) 
+					{
+						moodengRammingCDCDTimer -= deltaTime;
+						if (moodengRammingCDCDTimer <= 0) {
+							brows.visible = false;
+							moodengRammingCDCD = false;
+							moodengRammingCD = false;
+							moodengRammingCDTimer = moodengRammingCDDuration;
+							moodengRammingCDCDTimer = moodengRammingCDCDDuration;
+						}
+					}
+				}
+
+				if(!moodengRammingCD && !isEating)
+				{
+					const targetDirection = moodeng.collider.end.clone().sub(moodeng.collider.start).normalize();
+					targetDirection.y = 0;
+
+					if(idleTargetDuration > 0)
+					{
+						idleTargetDuration -= deltaTime;
+					}
+					else
+					{
+						if(turnAround)
+						{
+							targetDirection.negate();
+							turnAround = false;
+						}
+						
+						const coneAngle = Math.PI / 3;  
+
+						const randomAngle = (Math.random() - 0.5) * coneAngle; 
+
+						const rotationMatrix = new THREE.Matrix4();
+						rotationMatrix.makeRotationY(randomAngle);
+
+						const rotatedDirection = targetDirection.clone().applyMatrix4(rotationMatrix);
+
+						moodeng.targetPosition = rotatedDirection.multiplyScalar(20);
+
+						idleTargetDuration = Math.random() * 3 + 0.5;
+						idleTargetDuration *= 1.5 - difficultyMult/4;
+
+					}
+
+					if(idleMoveCooldown <= 0)
+					{
+
+						if(idleMoveDuration <= 0)
+						{
+							idleMoveDuration = Math.random() * 2 + 1;
+							idleMoveDuration *= 0.75 + difficultyMult/4;
+							idleMoveCooldown = Math.random() * 2 + 1;
+							idleMoveCooldown *= 1.5 - difficultyMult/5;
+						}
+						else
+						{
+							idleMoveDuration -= deltaTime;
+							const adjustedMovespeed = moveSpeed * (0.75 + difficultyMult/5);
+							moodeng.velocity.add(targetDirection.multiplyScalar(adjustedMovespeed*deltaTime));
+						}
+					}
+					else
+					{
+						idleMoveCooldown -= deltaTime;
+					}
+
+					if(idleJumpCooldown > 0)
+					{
+						idleJumpCooldown -= deltaTime;
+					}
+					else
+					{
+						if(moodeng.onFloor)
+						{
+							moodeng.velocity.y = Math.random() > 0.5 ? 5 : 0;
+							idleJumpCooldown = Math.random() * 5 + 1;
+							idleJumpCooldown *= 1.5 - difficultyMult/5;
+						}
+					}
+				}
+				if(moodeng.velocity.length() > 0 && moodeng.onFloor)
+				{
+					//change speed based on velocity
+					//console.log(moodeng.velocity.length());
+					trotAction.timeScale = Math.min(moodeng.velocity.length()*2, 10);
+					trotAction.play();
+				}
+				else
+				{
+					trotAction.stop();
+				}
+			}
+			
+			//ตรรกะ moodeng โดนพุ่งชน
+
+			function moodengRamming()
+			{
+
+				// Get the forward direction based on the current rotation of the moodeng object
+				const forwardNormal = moodeng.collider.end.clone().sub(moodeng.collider.start).normalize();
+
+				// moodeng.targetPosition = forwardNormal.clone().multiplyScalar(100);
+
+				// let distance = moodeng.collider.start.distanceTo(moodeng.targetPosition);
+				// distance *= 4;
+				// Apply the velocity in the facing direction
+
+				const moodengCenter = new THREE.Vector3();
+				moodeng.collider.getCenter(moodengCenter);
+				moodengCenter.y = 0;
+				const playerCenter = new THREE.Vector3();
+				player.collider.getCenter(playerCenter);
+				playerCenter.y = 0;
+
+				moodeng.targetPosition = forwardNormal.clone().multiplyScalar(100); 
+
+				forwardNormal.y = 0;
+				moodeng.velocity.copy(forwardNormal.multiplyScalar( 70 * (1 + difficultyMult/20) ));
+
+			}
+
+			//ตรรกะ moodeng กินแตงโม (แตงโมค่อยๆ เล็กลง)
+
+			function moodengEating()
+			{
+				if(moodengEatingElapsed > moodengEatingDuration/3)
+				{
+					watermelon.mesh.children[0].visible = false;
+				}
+				if(moodengEatingElapsed > moodengEatingDuration*2/3)
+				{
+					watermelon.mesh.children[1].visible = false;
+				}
+				if(moodengEatingElapsed > moodengEatingDuration)
+				{
+					watermelon.mesh.children[2].visible = false;
+					isEating = false;
+					watermelon.respawnTimer = Math.random() * 5 + 5;
+					moodengEatingElapsed = 0;
+					eatingAction.stop();
+					watermelon.isActive = false;
+					watermelon.mesh.visible = false;
+				}
+
+			}
+
+			//ตรรกะเช็ค collision ของผู้เล่นกับ moodeng
+			//เป็นการเช็ค capsule ชน capsule อ้างอิงมาจาก https://wickedengine.net/2020/04/capsule-collision-detection/
+
+			function playerMoodengCollision()
+			{
+
+				const player_normal = new THREE.Vector3().subVectors(player.collider.end, player.collider.start).normalize();
+				const player_lineEndOffset = player_normal.clone().multiplyScalar(player.collider.radius);
+				const player_offset = player_normal.clone().multiplyScalar(player.collider.radius);
+				const player_A = new THREE.Vector3().addVectors(player.collider.start.clone().sub(player_offset), player_lineEndOffset);
+				const player_B = new THREE.Vector3().subVectors(player.collider.end.clone().add(player_offset), player_lineEndOffset);
+
+				const moodeng_normal = new THREE.Vector3().subVectors(moodeng.collider.end, moodeng.collider.start).normalize();
+				const moodeng_lineEndOffset = moodeng_normal.clone().multiplyScalar(moodeng.collider.radius);
+				const moodeng_offset = moodeng_normal.clone().multiplyScalar(moodeng.collider.radius);
+				const moodeng_A = new THREE.Vector3().addVectors(moodeng.collider.start.clone().sub(moodeng_offset), moodeng_lineEndOffset);
+				const moodeng_B = new THREE.Vector3().subVectors(moodeng.collider.end.clone().add(moodeng_offset), moodeng_lineEndOffset);
+
+				const v0 = new THREE.Vector3().subVectors(moodeng_A, player_A);
+				const v1 = new THREE.Vector3().subVectors(moodeng_B, player_A);
+				const v2 = new THREE.Vector3().subVectors(moodeng_A, player_B);
+				const v3 = new THREE.Vector3().subVectors(moodeng_B, player_B);
+
+				const d0 = v0.dot(v0);
+				const d1 = v1.dot(v1);
+				const d2 = v2.dot(v2);
+				const d3 = v3.dot(v3);
+
+				let best_player;
+				let best_moodeng;
+				if(d2 < d0 || d2 < d1 || d3 < d0 || d3 < d1)
+				{
+					best_player = player_B;
+				}
+				else
+				{
+					best_player = player_A;
+				}
+				best_moodeng = closestPointOnLineSegment(moodeng_A, moodeng_B, best_player);
+				best_player = closestPointOnLineSegment(player_A, player_B, best_moodeng);
+				sphereDebug.position.copy(best_moodeng);
+
+
+				const penetration_normal = new THREE.Vector3().subVectors(best_player, best_moodeng);
+				
+				const length = penetration_normal.length();
+				if(length < 1e-10)
+				{
+					return;
+				}
+
+				penetration_normal.divideScalar(length);
+
+				const penetration_depth = moodeng.collider.radius + player.collider.radius - length;
+
+				moodeng.capsuleDebug.material.color.setHex(0x0000ff);
+
+				
+				if(penetration_depth > 1e-10)
+				{
+					//for debug : change colliderDebug color
+					moodeng.capsuleDebug.material.color.setHex(0x00ff00);
+
+					const player_projection = penetration_normal.clone().multiplyScalar(penetration_normal.dot(player.velocity));
+					const moodeng_projection = penetration_normal.clone().multiplyScalar(penetration_normal.dot(moodeng.velocity));
+
+					const correction = penetration_normal.clone().multiplyScalar(penetration_depth);
+					player.collider.translate(correction); 
+
+					if (moodeng_projection.length() > player_projection.length())
+					{
+						const knockbackVelocity = new THREE.Vector3().subVectors(moodeng_projection, player_projection)
+
+						player.velocity.add(knockbackVelocity.clone().multiplyScalar(0.5));
+
+						if(knockbackVelocity.length() > 10)
+						{
+							knockbackVelocity.y = Math.max(2 + difficultyMult/5, knockbackVelocity.y);
+							player.velocity.add(new THREE.Vector3(0, knockbackVelocity.y, 0));
+							originalCameraRotation.copy(camera.rotation);
+							isStun = true;
+							stunTimer = knockbackVelocity.length()/10;
+						}
+					}
+
+				}
+
+			}
+
+			//ตรรกะเช็ค collision ของ player กับแผนที่
+
+			function playerCollisions() {
+
+				const floorResult = floorOctree.capsuleIntersect( player.collider );
+
+				player.onFloor = false;
+
+				if ( floorResult ) {
+
+					player.onFloor = floorResult.normal.y > 0;
+
+					if ( ! player.onFloor ) {
+
+						player.velocity.addScaledVector( floorResult.normal, - floorResult.normal.dot( player.velocity ) );
+
+					}
+
+					if ( floorResult.depth >= 1e-10 ) {
+
+						player.collider.translate( floorResult.normal.multiplyScalar( floorResult.depth ) );
+
+					}
+
+				}
+
+				const wallResult = wallOctree.capsuleIntersect( player.collider );
+
+				if (wallResult)
+				{
+					if (wallResult.depth >= 1e-10)
+					{
+						player.collider.translate(wallResult.normal.multiplyScalar(wallResult.depth));
+					}
+				}
+
+			}
+
+			
+			const vector1 = new THREE.Vector3();
+			const vector2 = new THREE.Vector3();
+			const vector3 = new THREE.Vector3();
+
+
+			//ตรรกะเช็ค collision moodeng กับ หยดน้ำ
+			//เมื่อชนให้เพิ่มคะแนนและ moodeng โกรธพุ่งชน
+
+			function moodengSphereCollision( sphere )
+			{
+
+				const center = vector1.addVectors( moodeng.collider.start, moodeng.collider.end ).multiplyScalar( 0.5 );
+
+				const sphere_center = sphere.collider.center;
+
+				const r = moodeng.collider.radius + sphere.collider.radius;
+				const r2 = r * r;
+
+				let hit = false;
+
+
+
+				for ( const point of [ moodeng.collider.start, moodeng.collider.end, center ] ) {
+
+					const d2 = point.distanceToSquared( sphere_center );
+
+					if ( d2 < r2 ) {
+
+						const normal = vector1.subVectors( point, sphere_center ).normalize();
+						const v1 = vector2.copy( normal ).multiplyScalar( normal.dot( moodeng.velocity ) );
+						const v2 = vector3.copy( normal ).multiplyScalar( normal.dot( sphere.velocity ) );
+
+						//moodeng.velocity.add( v2 ).sub( v1 );
+						sphere.velocity.add( v1 ).sub( v2 );
+
+						const d = ( r - Math.sqrt( d2 ) ) / 2;
+						sphere_center.addScaledVector( normal, - d );
+						sphere.lifetime = Math.min(sphere.lifetime, 0.2);
+
+						if(sphere.canHit)
+						{
+							updateScore(1);
+							sphere.canHit = false;
+						}				
+
+						decayCD = true;
+						hit = true;
+
+					}
+
+				}		
+				if(hit && !moodengRammingCDCD && !isStun && difficultyMult > 0 && !freezeMoodeng && !isEating)
+				{
+					const playerCenter = new THREE.Vector3().addVectors(player.collider.start, player.collider.end).multiplyScalar(0.5);
+					if (!moodengRammingCD) {
+						moodengRammingCD = true;
+						brows.visible = true;
+					}
+					moodeng.targetPosition = new THREE.Vector3(playerCenter.x, 0, playerCenter.z);	
+				}		
+			}
+
+			//ตรรกะเช็ค moodeng ชนกับแตงโม (เมื่อชนให้เริ่มกิน)
+
+			function moodengWatermelonCollision()
+			{
+				if(!watermelon.isActive)
+				{
+					return;
+				}
+				const moodengCenter = new THREE.Vector3().addVectors(moodeng.collider.start, moodeng.collider.end).multiplyScalar(0.5);
+				const watermelonCenter = watermelon.collider.center;
+
+				const r = moodeng.collider.radius + watermelon.collider.radius;
+				const r2 = r * r;
+
+				const d2 = moodengCenter.distanceToSquared(watermelonCenter);
+
+				if (d2 < r2) {
+					moodeng.velocity.x = 0;
+					moodeng.velocity.z = 0;
+					moodeng.targetPosition = new THREE.Vector3(watermelon.collider.center.x, 0 , watermelon.collider.center.z);
+					isEating = true;
+					brows.visible = false;
+					eatingAction.play();
+				}
+			}
+
+
+			//ตรรกะหยดน้ำ มีเรื่องการเคลื่อนไหวและเช็ค collision กับแผนที่และ moodeng
+
+			function updateSpheres( deltaTime ) {
+
+				spheres.forEach( sphere => {
+
+					sphere.collider.center.addScaledVector( sphere.velocity, deltaTime );
+					sphere.lifetime -= deltaTime;
+
+					const floorResult = floorOctree.sphereIntersect( sphere.collider );
+
+					if ( floorResult ) {
+
+						sphere.lifetime = 0;
+
+					} else {
+
+						sphere.velocity.y -= GRAVITY * deltaTime;
+
+					}
+
+					const wallResult = wallOctree.sphereIntersect( sphere.collider );
+					
+					if ( wallResult ) {
+
+						sphere.lifetime = 0;
+					}
+
+					if ( sphere.lifetime <= 0 || sphere.collider.center.y < - 5 )
+					{
+						sphere.collider.center.set( 0, -100, 0 );
+						sphere.mesh.visible = false;
+					}
+
+					const damping = Math.exp( - 1.5 * deltaTime ) - 1;
+					sphere.velocity.addScaledVector( sphere.velocity, damping );
+
+					moodengSphereCollision( sphere );
+
+				} );
+
+				
+				for ( const sphere of spheres ) {
+
+					sphere.mesh.position.copy( sphere.collider.center );
+				}
+
+				if (shootWaterCD) {
+					shootWaterCDTimer -= deltaTime;
+					if (shootWaterCDTimer <= 0) {
+						shootWaterCD = false;  // Reset cooldown
+						shootWaterCDTimer = shootWaterCDDuration;
+					}
+				}
+
+			}
+
+			//ตรรกะการ spawn แตงโมและการเคลื่อนไหว
+
+			function updateWatermelon(deltaTime)
+			{
+				if(!watermelon.isActive)
+				{
+					watermelon.respawnTimer -= deltaTime;
+					if(watermelon.respawnTimer <= 0)
+					{
+						while(true)
+						{
+							watermelon.collider.center.set((Math.random()-0.5)*20 , 0, (Math.random()-0.5)*20);
+							const wallResult = wallOctree.sphereIntersect( watermelon.collider );
+							if(!wallResult)
+							{
+								break;
+							}
+						}
+
+						watermelon.mesh.visible = true;
+						watermelon.mesh.children[0].visible = true;	
+						watermelon.mesh.children[1].visible = true;
+						watermelon.mesh.children[2].visible = true;
+						watermelon.isActive = true;
+						watermelon.elapsedTime = 0;
+					}
+				}
+				else 
+				{
+					if(!isEating)
+					{
+						watermelon.elapsedTime += deltaTime;
+						watermelon.collider.center.y = 1 + Math.sin(watermelon.elapsedTime*10)*0.1;
+						watermelon.mesh.rotation.y += deltaTime;
+					}
+					else
+					{
+						watermelon.collider.center.y = 0.5;
+					}
+					watermelon.mesh.position.copy(watermelon.collider.center);
+				}
+
+			}
+
+			//หาเวกเตอร์หน้า และข้างของผู้เล่น
+
+			function getForwardVector() {
+				const forward = new THREE.Vector3();
+				camera.getWorldDirection( forward );
+				forward.y = 0;
+				forward.normalize();
+
+				return forward;
+
+			}
+
+			function getSideVector() {
+				const side = new THREE.Vector3();
+				camera.getWorldDirection( side );
+				side.y = 0;
+				side.normalize();
+				side.cross( camera.up );
+
+				return side;
+
+			}
+			
+
+			//ทำจอส่ายเวลาผู้เล่นสตัน
+
+			let dizzyTimeElapsed = 0; 
+			function dizzyCameraEffect(deltaTime){
+				const dizzyAmplitude = 0.2; 
+				const dizzyFrequency = 5; 
+				const adjustedAmplitude = dizzyAmplitude * stunTimer;
+
+				dizzyTimeElapsed += deltaTime;
+
+				const randomOffsetX = Math.sin(dizzyTimeElapsed * dizzyFrequency * 2) * adjustedAmplitude / 2;
+				const randomOffsetY = Math.cos(dizzyTimeElapsed * dizzyFrequency) * adjustedAmplitude - adjustedAmplitude;
+
+				camera.rotation.x = originalCameraRotation.x + randomOffsetX;
+				camera.rotation.y = originalCameraRotation.y + randomOffsetY;
+
+				camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x, - Math.PI / 2, Math.PI / 2 );
+			}
+
+			//ตรรกะการควบคุมของผู้เล่น
+			function controls( deltaTime ) {
+
+
+				if( win && keyStates['KeyR'] )
+				{
+					restart();
+					return;
+				}
+
+				let isShooting = keyStates[ 'KeyF'] || isMouseDown; 
+
+
+				if(isStun)
+				{
+					//console.log(stunTimer);
+					dizzyCameraEffect(deltaTime);
+					stunTimer -= deltaTime;
+					holdTime -= 0.01;
+					
+					if(stunTimer <= 0)
+					{
+						dizzyTimeElapsed = 0;
+						isStun = false;
+					}
+					
+				}
+				else 
+				{
+					// gives a bit of air control
+					const speedDelta = deltaTime * ( player.onFloor ? 25 : 8 );
+
+					if ( keyStates[ 'KeyW' ] ) {
+
+						player.velocity.add( getForwardVector().multiplyScalar( speedDelta ) );
+
+					}
+
+					if ( keyStates[ 'KeyS' ] ) {
+
+						player.velocity.add( getForwardVector().multiplyScalar( - speedDelta ) );
+
+					}
+
+					if ( keyStates[ 'KeyA' ] ) {
+
+						player.velocity.add( getSideVector().multiplyScalar( - speedDelta ) );
+
+					}
+
+					if ( keyStates[ 'KeyD' ] ) {
+
+						player.velocity.add( getSideVector().multiplyScalar( speedDelta ) );
+
+					}
+
+					
+					if ( player.onFloor ) {
+
+						if ( keyStates[ 'Space' ] ) {
+
+							player.velocity.y = 10;
+
+						}
+
+					}
+
+					if(isShooting)
+						{
+							holdTime = 1;
+						}
+					}
+
+				const shotsPerCD = 10;		
+				if(holdTime > 0) {
+					if(!shootWaterCD) {
+						for(let i = 0; i < shotsPerCD; i++) {
+							shootWater();
+							shootWaterCD = true;
+						}
+					}
+					if(!isShooting)
+					{	
+						holdTime -= 0.02;
+					}
+				}
+
+
+			}
+
+			//reset ตำแหน่งผู้เล่นและ moodeng เมื่อหลุดแมพ
+
+			function teleportPlayerIfOob() {
+				const playerCenter = new THREE.Vector3().addVectors(player.collider.start, player.collider.end).multiplyScalar(0.5);
+				if ( playerCenter.y <= - 10 ) {
+
+					player.collider.start.copy( originalPlayerStartOffset );
+					player.collider.end.copy( originalPlayerEndOffset );
+					player.velocity.set( 0, 0, 0 );
+					//player.collider.translate(new THREE.Vector3(0, 3, 0));
+					camera.position.copy( player.collider.end );
+					camera.rotation.set( 0, 0, 0 );
+				}
+
+				const moodengCenter = new THREE.Vector3().addVectors(moodeng.collider.start, moodeng.collider.end).multiplyScalar(0.5);
+				if( moodeng.mesh && moodengCenter.y <= -10) {
+					moodeng.collider.start.copy( originalMoodengStartOffset );
+					moodeng.collider.end.copy( originalMoodengEndOffset );
+					moodeng.collider.translate(new THREE.Vector3(0, 0.75, -5));
+					moodeng.collider.getCenter(moodeng.mesh.position);
+					moodeng.mesh.rotation.set(0,0,0);
+					moodeng.targetPosition = new THREE.Vector3();
+				}
+
+			}
+
+			//game loop หลัก
+
+			function animate() {
+
+				const deltaTime = Math.min( 0.05, clock.getDelta() ) / STEPS_PER_FRAME;
+
+				// we look for collisions in substeps to mitigate the risk of
+				// an object traversing another too quickly for detection.
+
+				for ( let i = 0; i < STEPS_PER_FRAME; i ++ ) {
+
+					controls( deltaTime );
+
+					updatePlayer( deltaTime );
+
+					updateMoodeng( deltaTime );
+
+					updateSpheres( deltaTime );
+
+					updateWatermelon(deltaTime);
+
+					teleportPlayerIfOob();
+
+					updateDebug();
+
+				}
+
+				if (mixer) {
+					mixer.update(deltaTime); // Update the animation mixer
+				}
+
+				renderer.render( scene, camera );
+
+				//stats.update();
+
+			}
+
+		</script>
+	</body>
+</html>
