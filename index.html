@@ -404,7 +404,7 @@
 				scoreContainer.style.display = 'block';
 				loadingContainer.style.display = 'none';
 				const buffer = audioBuffers[difficultyMult] || audioBuffers[1];
-				music.buffer(buffer);
+				music.setBuffer(buffer);
 				music.play();
 				
 			};
