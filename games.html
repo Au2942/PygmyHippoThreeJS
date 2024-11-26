@@ -403,6 +403,8 @@
 				renderer.setAnimationLoop( animate );
 				scoreContainer.style.display = 'block';
 				loadingContainer.style.display = 'none';
+				const buffer = audioBuffers[difficultyMult] || audioBuffers[1];
+				music.buffer(buffer);
 				music.play();
 				
 			};
@@ -567,15 +569,12 @@
 						scene.background = rt.texture;
 					});
 
-				//โหลดเสียงเพลง
-				audioLoader.load('./sounds/' + tracks[1], function (buffer) {
-					music.setBuffer(buffer);
-					music.setLoop(true);
-					music.setVolume(1);
-
-					// Store the default buffer in case we need it again
-					audioBuffers[1] = buffer;
-				});
+				//โหลดเพลง
+				for (let i = 1; i <= 6; i++) {
+					audioLoader.load('./sounds/' + tracks[i], function (buffer) {
+						audioBuffers[i] = buffer;
+					});
+				}
 				//โหลดเสียง sfx
 				audioLoader.load('./sounds/Finish Star 3.mp3', function (buffer) {
 					sfx.setBuffer(buffer);
@@ -583,14 +582,7 @@
 					sfx.setVolume(1);
 				});
 
-				//โหลดเสียงเพลงใน tracks ที่เหลือมาเก็บใน audioBuffers เพื่อใช้ตอนเปลี่ยนเพลง
-				for (const [difficulty, file] of Object.entries(tracks)) {
-					if (parseInt(difficulty) === 1) continue; // Skip reloading the default track
-
-					audioLoader.load('./sounds/' + file, function (buffer) {
-						audioBuffers[difficulty] = buffer;
-					});
-				}
+				
 				
 				//สร้าง GUI ให้ผู้ใช้ interact ผ่าน ui 
 				//แสดง collider ของแผนที่ที่สร้างโดย Octree
