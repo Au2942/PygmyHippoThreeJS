@@ -403,6 +403,7 @@
 				renderer.setAnimationLoop( animate );
 				scoreContainer.style.display = 'block';
 				loadingContainer.style.display = 'none';
+				music.play();
 				
 			};
 
@@ -571,7 +572,6 @@
 					music.setBuffer(buffer);
 					music.setLoop(true);
 					music.setVolume(1);
-					music.play();
 
 					// Store the default buffer in case we need it again
 					audioBuffers[1] = buffer;
