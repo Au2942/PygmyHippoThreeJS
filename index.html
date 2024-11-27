@@ -419,7 +419,7 @@
 				startTimer();
 			};
 
-			const loader = new GLTFLoader(manager).setPath( './models/gltf/' );
+			const loader = new GLTFLoader(manager).setPath( './models/' );
 			const textureLoader = new THREE.TextureLoader(manager);
 			const exrLoader = new EXRLoader(manager);
 			const gui = new GUI( { width: 200 } );
@@ -455,7 +455,7 @@
 			{
 				let floorHelper;
 				let wallHelper;
-				loader.load( 'enclosure.gltf', ( gltf ) => {
+				loader.load( 'enclosure.glb', ( gltf ) => {
 
 					scene.add( gltf.scene );
 
@@ -483,7 +483,7 @@
 
 				} );
 
-				loader.load('moodeng_lowpoly.gltf', (gltf) => {
+				loader.load('moodeng_lowpoly.glb', (gltf) => {
 				const root = gltf.scene;
 				const mesh = root.getObjectByName('Moodeng');
 				body = root.getObjectByName('Body');
@@ -550,7 +550,7 @@
 
 				});
 
-				loader.load('watermelon.gltf', (gltf) => {
+				loader.load('watermelon.glb', (gltf) => {
 					const root = gltf.scene;
 					const mesh = root.getObjectByName('Watermelon');
 					if(mesh)
