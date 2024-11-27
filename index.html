@@ -105,10 +105,10 @@
 				background-color: black;
 			}
 			progress#score-bar::-webkit-progress-value {
-				background-color: aquamarine;
+				background-color: MediumAquamarine	;
 			}
 			progress#score-bar::-moz-progress-bar{
-				background-color: aquamarine;
+				background-color: MediumAquamarine	;
 			}
 			#score-text {
 				margin-left: 10px;
@@ -127,6 +127,17 @@
 				border: 2px solid white;
 				z-index: 30;
 				display: none;
+			}
+			#timer {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				text-align: center; 
+				font-size: 18px; 
+				color: white;
+				font-family: Arial, sans-serif;
+				z-index: 10;
 			}
 		</style>
 	</head>
@@ -149,6 +160,9 @@
 				<label for="score-bar">Score:</label>
 				<progress id="score-bar" value="0" max="100"></progress>
 				<span id="score-text">0%</span>
+				<div id="timer">
+					<label id="minutes">00</label>:<label id="seconds">00</label>:<label id="milliseconds">00</label>
+				</div>
 				<div id="victoryinfo">
 					<h1>Victory!</h1>
 					<p>press R to restart!</p>
@@ -308,7 +322,7 @@
 
 			let score = 0.00;
 			const maxScore = 10000.00;
-			let decayScore = maxScore * 0.01;
+			let decayScore = maxScore * 0.02;
 			let decayCD = false;
 			let decayCDTimer = 1;
 			let decayCDTimerElapsed = 0;
@@ -403,10 +417,7 @@
 				renderer.setAnimationLoop( animate );
 				scoreContainer.style.display = 'block';
 				loadingContainer.style.display = 'none';
-				const buffer = audioBuffers[difficultyMult] || audioBuffers[1];
-				music.setBuffer(buffer);
-				music.play();
-				
+				startTimer();
 			};
 
 			const loader = new GLTFLoader(manager).setPath( './models/gltf/' );
@@ -489,7 +500,6 @@
 				if(mesh)
 				{
 					animations = gltf.animations;
-					console.log(animations)
 					mixer = new THREE.AnimationMixer(mesh);
 					eatingAction = mixer.clipAction(animations[0]);
 					eatingAction.timeScale = 2;
@@ -571,10 +581,21 @@
 
 				//โหลดเพลง
 				for (let i = 1; i <= 6; i++) {
+					if(i === difficultyMult)
+					{
+						audioLoader.load('./sounds/' + tracks[i], function (buffer) {
+							audioBuffers[i] = buffer;
+							music.setBuffer(buffer);
+							music.setLoop(true);
+							music.setVolume(1);
+							music.play();
+						});
+					}
 					audioLoader.load('./sounds/' + tracks[i], function (buffer) {
 						audioBuffers[i] = buffer;
 					});
 				}
+
 				//โหลดเสียง sfx
 				audioLoader.load('./sounds/Finish Star 3.mp3', function (buffer) {
 					sfx.setBuffer(buffer);
@@ -654,6 +675,7 @@
 			//เริ่มเกมใหม่ โดย reset ค่าต่าง ๆ ให้เป็นค่าเริ่มต้น
 			function restart()
 			{
+				
 				holdTime = 0;
 
 				score = 0.00;
@@ -720,6 +742,8 @@
 				moodeng.velocity.set( 0, 0, 0 );
 				moodeng.mesh.rotation.set(0,0,0);
 				moodeng.targetPosition = new THREE.Vector3();
+
+				startTimer();
 			}
 
 			//ส่วนตรรกะเกมต่างๆ
@@ -793,6 +817,7 @@
 					score = maxScore;
 					victoryinfo.style.display = 'block';
 					win = true;
+					pauseTimer();
 					idleAction.stop();
 					trotAction.stop();
 					eatingAction.stop();
@@ -807,6 +832,7 @@
 						music.buffer = audioBuffers[6];
 						music.play();
 					}, sfx.buffer.duration * 1000);
+					
 				} 
 				if (score < 0) score = 0;
 
@@ -1002,14 +1028,14 @@
 					moodengEating();
 				}
 				if (moodengRammingCD) {
-					if(!moodengRammingCDCD) {
+					if(!moodengRammingCDCD && !isEating) {
 						moodengRammingCDTimer -= deltaTime; 
 						if (moodengRammingCDTimer <= 0 && moodeng.onFloor) {
 							moodengRamming(); 
 							moodengRammingCDCD = true;
 						}
 					}
-					else if(!isEating) 
+					else 
 					{
 						moodengRammingCDCDTimer -= deltaTime;
 						if (moodengRammingCDCDTimer <= 0) {
@@ -1632,6 +1658,36 @@
 					moodeng.targetPosition = new THREE.Vector3();
 				}
 
+			}
+
+			let minutesLabel = document.getElementById("minutes");
+			let secondsLabel = document.getElementById("seconds");
+			let millisecondsLabel = document.getElementById("milliseconds");
+			let totalSeconds = 0;
+			let timerInterval; // Store the timer interval for control
+
+			function startTimer() {
+				totalSeconds = 0;
+				secondsLabel.innerHTML = "00";
+				minutesLabel.innerHTML = "00";
+				millisecondsLabel.innerHTML = "00";
+				timerInterval = setInterval(updateTime, 1);
+			}
+
+			function updateTime() {
+				totalSeconds++;
+				millisecondsLabel.innerHTML = pad(totalSeconds % 100);
+				secondsLabel.innerHTML = pad(parseInt(totalSeconds / 100) % 60);
+				minutesLabel.innerHTML = pad(parseInt(totalSeconds / 6000));
+			}
+
+			function pauseTimer() {
+				clearInterval(timerInterval); // Stop the interval
+
+			}
+
+			function pad(val) {
+				return val < 10 ? "0" + val : val; // Ensure two-digit formatting
 			}
 
 			//game loop หลัก
