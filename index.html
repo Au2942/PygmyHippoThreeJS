@@ -743,7 +743,7 @@
 				moodeng.velocity.set( 0, 0, 0 );
 				moodeng.mesh.rotation.set(0,0,0);
 				moodeng.targetPosition = new THREE.Vector3();
-
+				pauseTimer();
 				startTimer();
 			}
 
@@ -1672,7 +1672,7 @@
 				secondsLabel.innerHTML = "00";
 				minutesLabel.innerHTML = "00";
 				millisecondsLabel.innerHTML = "00";
-				timerInterval = setInterval(updateTime, 1);
+				timerInterval = setInterval(updateTime, 10);
 			}
 
 			function updateTime() {
@@ -1683,8 +1683,7 @@
 			}
 
 			function pauseTimer() {
-				clearInterval(timerInterval); // Stop the interval
-
+				clearInterval(timerInterval);
 			}
 
 			function pad(val) {
