@@ -110,8 +110,11 @@
 				background-color: MediumAquamarine	;
 			}
 			#score-text {
-				margin-left: 10px;
-				margin-right: 10px;	
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				text-align: center; 
 				color: white;
 			}
 			#victoryinfo {
@@ -128,15 +131,14 @@
 				display: none;
 			}
 			#timer {
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				text-align: center; 
+				margin-left: 10px;
+				margin-right: 10px;	
 				font-size: 18px; 
 				color: white;
 				font-family: Arial, sans-serif;
-				z-index: 10;
+			}
+			#timer label {
+				margin: 0px;
 			}
 		</style>
 	</head>
@@ -158,10 +160,10 @@
 			<div id="score-container">
 				<label for="score-bar">Score:</label>
 				<progress id="score-bar" value="0" max="100"></progress>
-				<span id="score-text">0%</span>
-				<div id="timer">
+				<span id="timer">
 					<label id="minutes">00</label>:<label id="seconds">00</label>:<label id="milliseconds">00</label>
-				</div>
+				</span>
+				<span id="score-text">0%</span>
 				<div id="victoryinfo">
 					<h1>Victory!</h1>
 					<p>press R to restart!</p>
