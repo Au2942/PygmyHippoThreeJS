@@ -418,6 +418,7 @@
 				renderer.setAnimationLoop( animate );
 				scoreContainer.style.display = 'block';
 				loadingContainer.style.display = 'none';
+				music.play();
 				startTimer();
 			};
 
@@ -589,7 +590,7 @@
 							music.setBuffer(buffer);
 							music.setLoop(true);
 							music.setVolume(1);
-							music.play();
+							//music.play();
 						});
 					}
 					audioLoader.load('./sounds/' + tracks[i], function (buffer) {
